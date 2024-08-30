@@ -14,6 +14,7 @@ sudo mount /dev/loop99 /mnt
 
 sudo mkdir -p /mnt/EFI/BOOT/
 sudo cp loader.efi /mnt/EFI/BOOT/BOOTX64.EFI
+sudo cp data.txt /mnt/DATA.TXT
 
 sudo umount /mnt
 sudo losetup -d /dev/loop99
