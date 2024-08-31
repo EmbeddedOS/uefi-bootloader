@@ -21,3 +21,7 @@ Build the application:
 # Emulator system with QEMU.
 ./qemu.sh
 ```
+
+## UEFI specification
+
+[UEFI spec](https://uefi.org/specs/UEFI/2.10/)
