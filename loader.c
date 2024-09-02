@@ -1,8 +1,8 @@
 #include <efi.h>
 #include <efilib.h>
 
-#define KERNEL_IMAGE_NAME "kernel.bin"
-#define KERNEL_ENTRY_POINT 0x1000000
+#define KERNEL_IMAGE_NAME L"kernel.bin"
+#define KERNEL_ENTRY_POINT 0x10000
 typedef struct
 {
   EFI_MEMORY_DESCRIPTOR *memory_map;
@@ -41,9 +41,11 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
   status = uefi_load_kernel_image(volume, KERNEL_IMAGE_NAME, KERNEL_ENTRY_POINT);
   if (EFI_ERROR(status))
   {
-    Print("Failed to load kernel: %d\n", status);
+    Print(L"Failed to load kernel: %d\n", status);
     return status;
   }
+
+  Print(L"Loaded kernel image.\n");
 
   /* 5. Loop to pause the boot progress. */
   while (1)
@@ -154,16 +156,16 @@ EFI_STATUS uefi_load_kernel_image(EFI_FILE_HANDLE volume,
 
   /* 2. Get kernel filesize. */
   file_size = uefi_get_file_size(file_handle);
-  Print("Kernel file size: %d\n", file_size);
+  Print(L"Kernel file size: %d, page: %d\n", file_size, EFI_SIZE_TO_PAGES(file_size));
 
   /* 3. Allocate physical pages for kernel. */
   status = uefi_call_wrapper(gBS->AllocatePages, 4,
-                             AllocateAddress, EfiLoaderData,
+                             AllocateAddress, EfiLoaderCode,
                              EFI_SIZE_TO_PAGES(file_size),
                              kernel_entry_point);
   if (EFI_ERROR(status))
   {
-    Print("Failed to allocate pages for kernel: %d\n", status);
+    Print(L"Failed to allocate pages for kernel: %d\n", status);
     goto allocate_pages_failure;
   }
 
@@ -174,7 +176,7 @@ EFI_STATUS uefi_load_kernel_image(EFI_FILE_HANDLE volume,
   status = uefi_read_file(file_handle, buffer, file_size);
   if (EFI_ERROR(status))
   {
-    Print("Failed to read kernel binary: %d\n", status);
+    Print(L"Failed to read kernel binary: %d\n", status);
     goto uefi_read_file_failure;
   }
 
@@ -183,7 +185,7 @@ EFI_STATUS uefi_load_kernel_image(EFI_FILE_HANDLE volume,
                              kernel_entry_point, buffer, file_size);
   if (EFI_ERROR(status))
   {
-    Print("Failed to copy kernel binary: %d\n", status);
+    Print(L"Failed to copy kernel binary: %d\n", status);
     goto copy_mem_failure;
   }
 
