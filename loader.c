@@ -1,6 +1,15 @@
 #include <efi.h>
 #include <efilib.h>
 
+#define KERNEL_IMAGE_NAME "kernel.bin"
+#define KERNEL_ENTRY_POINT 0x1000000
+typedef struct
+{
+  EFI_MEMORY_DESCRIPTOR *memory_map;
+} kernel_boot_option_t;
+
+typedef void (*kernel_main)(kernel_boot_option_t *options);
+
 EFI_FILE_HANDLE uefi_get_volume(EFI_HANDLE image);
 
 UINT64 uefi_get_file_size(EFI_FILE_HANDLE file_handle);
@@ -13,48 +22,34 @@ EFI_STATUS uefi_close_file(EFI_FILE_HANDLE file_handle);
 
 EFI_STATUS uefi_read_file(EFI_FILE_HANDLE file_handle, UINT8 *buffer, UINT64 size);
 
+EFI_STATUS uefi_load_kernel_image(EFI_FILE_HANDLE volume,
+                                  CHAR16 *filename,
+                                  EFI_PHYSICAL_ADDRESS *kernel_entry_point);
+
 EFI_STATUS
 EFIAPI
 efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 {
   EFI_STATUS status = EFI_SUCCESS;
   EFI_FILE_HANDLE volume;
-  EFI_FILE_HANDLE file_handle;
-  UINT64 file_size = 0;
-  UINT8 *buffer = NULL;
+  kernel_boot_option_t kernel_ops = {0};
 
   /* 1. Initialize system. */
   InitializeLib(ImageHandle, SystemTable);
   volume = uefi_get_volume(ImageHandle);
 
-  /* 2. Open the file. */
-  status = uefi_open_file(volume, L"DATA.TXT", &file_handle);
+  status = uefi_load_kernel_image(volume, KERNEL_IMAGE_NAME, KERNEL_ENTRY_POINT);
   if (EFI_ERROR(status))
   {
-    return status;
-  }
-
-  /* 3. Read from the file. */
-  file_size = uefi_get_file_size(file_handle);
-  buffer = AllocatePool(file_size);
-  status = uefi_read_file(file_handle, buffer, file_size);
-  if (EFI_ERROR(status))
-  {
-    return status;
-  }
-
-  Print(L"Read from file: %a\n", buffer);
-
-  /* 4. Close the file. */
-  status = uefi_close_file(file_handle);
-  if (EFI_ERROR(status))
-  {
+    Print("Failed to load kernel: %d\n", status);
     return status;
   }
 
   /* 5. Loop to pause the boot progress. */
   while (1)
     ;
+
+  ((kernel_main)KERNEL_ENTRY_POINT)(&kernel_ops);
 
   return EFI_SUCCESS;
 }
@@ -69,11 +64,11 @@ EFI_FILE_HANDLE uefi_get_volume(EFI_HANDLE image)
 
   /* 1. Get the loaded image protocol interface for our "image". */
   uefi_call_wrapper(BS->HandleProtocol, 3, image, &lipGuid, (void **)&loaded_image);
-  
+
   /* 2. Get the volume handle. */
   uefi_call_wrapper(BS->HandleProtocol, 3, loaded_image->DeviceHandle, &fsGuid, (VOID *)&IOVolume);
   uefi_call_wrapper(IOVolume->OpenVolume, 2, IOVolume, &Volume);
-  
+
   return Volume;
 }
 
@@ -137,5 +132,72 @@ EFI_STATUS uefi_read_file(EFI_FILE_HANDLE file_handle,
     Print(L"Can't get %d bytes, actual reading size: %d\n", size, read_size);
   }
 
+  return status;
+}
+
+EFI_STATUS uefi_load_kernel_image(EFI_FILE_HANDLE volume,
+                                  CHAR16 *filename,
+                                  EFI_PHYSICAL_ADDRESS *kernel_entry_point)
+{
+  EFI_STATUS status = EFI_SUCCESS;
+  EFI_FILE_HANDLE file_handle;
+  UINT64 file_size = 0;
+  UINT8 *buffer = NULL;
+  kernel_boot_option_t kernel_ops = {0};
+
+  /* 1. Open the file. */
+  status = uefi_open_file(volume, filename, &file_handle);
+  if (EFI_ERROR(status))
+  {
+    goto exit;
+  }
+
+  /* 2. Get kernel filesize. */
+  file_size = uefi_get_file_size(file_handle);
+  Print("Kernel file size: %d\n", file_size);
+
+  /* 3. Allocate physical pages for kernel. */
+  status = uefi_call_wrapper(gBS->AllocatePages, 4,
+                             AllocateAddress, EfiLoaderData,
+                             EFI_SIZE_TO_PAGES(file_size),
+                             kernel_entry_point);
+  if (EFI_ERROR(status))
+  {
+    Print("Failed to allocate pages for kernel: %d\n", status);
+    goto allocate_pages_failure;
+  }
+
+  /* 4. Allocate buffer to read kernel binary. */
+  buffer = AllocatePool(file_size);
+
+  /* 5. Read the kernel binary to buffer. */
+  status = uefi_read_file(file_handle, buffer, file_size);
+  if (EFI_ERROR(status))
+  {
+    Print("Failed to read kernel binary: %d\n", status);
+    goto uefi_read_file_failure;
+  }
+
+  /* 6. Copy from the buffer to kernel memory. */
+  status = uefi_call_wrapper(gBS->CopyMem, 3,
+                             kernel_entry_point, buffer, file_size);
+  if (EFI_ERROR(status))
+  {
+    Print("Failed to copy kernel binary: %d\n", status);
+    goto copy_mem_failure;
+  }
+
+  /* 7. Close the file. */
+  goto exit_success;
+
+copy_mem_failure:
+uefi_read_file_failure:
+  uefi_call_wrapper(gBS->FreePages, 2, kernel_entry_point, EFI_SIZE_TO_PAGES(file_size));
+exit_success:
+  FreePool(buffer);
+allocate_pages_failure:
+close_file:
+  uefi_close_file(file_handle);
+exit:
   return status;
 }
