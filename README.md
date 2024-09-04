@@ -1,6 +1,6 @@
 # uefi-bootloader
 
-A simple UEFI OS loader to load a dummy kernel.
+A simple UEFI OS loader to load a kernel.
 
 Build the GNU-EFI:
 
