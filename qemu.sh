@@ -1,1 +1,1 @@
-sudo qemu-system-x86_64 -cpu qemu64 -bios /usr/share/qemu/OVMF.fd -drive file=uefi.img,if=ide
+sudo qemu-system-x86_64 -cpu qemu64 -bios /usr/share/qemu/OVMF.fd -drive format=raw,unit=0,file=uefi.img -m 256M -vga std -net none
