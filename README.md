@@ -6,20 +6,25 @@ Build the GNU-EFI:
 
 ```bash
 git submodule update -init
-make build-gnu-efi
+make lib
 ```
 
-Build the application:
+Build applications:
 
 ```bash
-# Create an OS image with EFI system partition and FAT32.
-./create-img.sh
+make app
+```
 
-# Build kernel, UEFI OS loader and put into the image.
-./build.sh
+Build final image:
 
-# Emulator system with QEMU.
-./qemu.sh
+```bash
+make image
+```
+
+## Emulate with qemu
+
+```bash
+make image && ./qemu.sh
 ```
 
 ## UEFI specification
