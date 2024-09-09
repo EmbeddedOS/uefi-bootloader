@@ -1,60 +1,4 @@
-#include <efi.h>
-#include <efilib.h>
-
-#define KERNEL_IMAGE_NAME L"kernel.bin"
-#define KERNEL_ENTRY_POINT 0x10000
-typedef struct
-{
-  EFI_MEMORY_DESCRIPTOR *memory_map;
-} kernel_boot_option_t;
-
-typedef void (*kernel_main)(kernel_boot_option_t *options);
-
-EFI_FILE_HANDLE uefi_get_volume(EFI_HANDLE image);
-
-UINT64 uefi_get_file_size(EFI_FILE_HANDLE file_handle);
-
-EFI_STATUS uefi_open_file(EFI_FILE_HANDLE volume,
-                          CHAR16 *filename,
-                          EFI_FILE_HANDLE *file_handle);
-
-EFI_STATUS uefi_close_file(EFI_FILE_HANDLE file_handle);
-
-EFI_STATUS uefi_read_file(EFI_FILE_HANDLE file_handle, UINT8 *buffer, UINT64 size);
-
-EFI_STATUS uefi_load_kernel_image(EFI_FILE_HANDLE volume,
-                                  CHAR16 *filename,
-                                  EFI_PHYSICAL_ADDRESS *kernel_entry_point);
-
-EFI_STATUS
-EFIAPI
-efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
-{
-  EFI_STATUS status = EFI_SUCCESS;
-  EFI_FILE_HANDLE volume;
-  kernel_boot_option_t kernel_ops = {0};
-
-  /* 1. Initialize system. */
-  InitializeLib(ImageHandle, SystemTable);
-  volume = uefi_get_volume(ImageHandle);
-
-  status = uefi_load_kernel_image(volume, KERNEL_IMAGE_NAME, KERNEL_ENTRY_POINT);
-  if (EFI_ERROR(status))
-  {
-    Print(L"Failed to load kernel: %d\n", status);
-    return status;
-  }
-
-  Print(L"Loaded kernel image.\n");
-
-  /* 5. Loop to pause the boot progress. */
-  while (1)
-    ;
-
-  ((kernel_main)KERNEL_ENTRY_POINT)(&kernel_ops);
-
-  return EFI_SUCCESS;
-}
+#include "file.h"
 
 EFI_FILE_HANDLE uefi_get_volume(EFI_HANDLE image)
 {
@@ -145,7 +89,6 @@ EFI_STATUS uefi_load_kernel_image(EFI_FILE_HANDLE volume,
   EFI_FILE_HANDLE file_handle;
   UINT64 file_size = 0;
   UINT8 *buffer = NULL;
-  kernel_boot_option_t kernel_ops = {0};
 
   /* 1. Open the file. */
   status = uefi_open_file(volume, filename, &file_handle);
