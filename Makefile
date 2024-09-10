@@ -20,8 +20,8 @@ app:$(BOOTLOADER_IMG)
 	echo "Built BOOTLOADER_OBJ"
 
 kernel.bin:
-	gcc -ffreestanding -c kernel.c -o kernel.o -fno-pie
-	ld -o kernel.bin kernel.o -nostdlib --oformat=binary -Ttext=0x10000
+	gcc -ffreestanding $(INC) -c kernel.c -o kernel.o -fPIE
+	ld -o kernel.bin kernel.o -nostdlib --oformat=binary -e main
 
 image: $(OS_IMAGE) $(BOOTLOADER_IMG) $(KERNEL_IMG)
 	sudo losetup --offset 1048576 --sizelimit 46934528 /dev/loop99 uefi.img
