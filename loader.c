@@ -5,7 +5,7 @@
 #include "file.h"
 
 /* Public defines ------------------------------------------------------------*/
-#define KERNEL_IMAGE_PATH L"kernel.bin"
+#define KERNEL_IMAGE_PATH L"kernel.elf"
 
 /* Public functions prototypes -----------------------------------------------*/
 EFI_GRAPHICS_OUTPUT_PROTOCOL *
