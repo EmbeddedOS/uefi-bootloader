@@ -34,7 +34,7 @@ UINT64 uefi_get_file_size(EFI_FILE_HANDLE file_handle)
 }
 
 EFI_STATUS uefi_open_file(EFI_FILE_HANDLE volume,
-                          CHAR16 *filename,
+                          const CHAR16 *filename,
                           EFI_FILE_HANDLE *file_handle)
 {
   EFI_STATUS status = EFI_SUCCESS;

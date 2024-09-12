@@ -20,12 +20,12 @@ void main(boot_params_t *params)
         }
     }
 
-    //     for (UINT32 y = 0; y < y_res/5; y++)
-    // {
-    //     for (UINT32 x = 0; x < x_res/5; x++)
-    //     {
-    //         frame_buffer[x + y * x_res] = 0xFFCC2222;
-    //     }
-    // }
+        for (UINT32 y = 0; y < y_res/5; y++)
+    {
+        for (UINT32 x = 0; x < x_res/5; x++)
+        {
+            frame_buffer[x + y * x_res] = 0xFFCC2222;
+        }
+    }
 
 }

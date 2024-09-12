@@ -20,7 +20,7 @@ EFI_FILE_HANDLE uefi_get_volume(EFI_HANDLE image);
 UINT64 uefi_get_file_size(EFI_FILE_HANDLE file_handle);
 
 EFI_STATUS uefi_open_file(EFI_FILE_HANDLE volume,
-                          CHAR16 *filename,
+                          const CHAR16 *filename,
                           EFI_FILE_HANDLE *file_handle);
 
 EFI_STATUS uefi_close_file(EFI_FILE_HANDLE file_handle);

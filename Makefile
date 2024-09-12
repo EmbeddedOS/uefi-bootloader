@@ -8,9 +8,9 @@ LDLIBS=-lgnuefi -lefi
 LD_LINKER_FILE=gnu-efi/gnuefi/elf_x86_64_efi.lds
 LD_STARTUP_FILE=gnu-efi/x86_64/gnuefi/crt0-efi-x86_64.o
 OBJCOPY_FLAGS=-j .text -j .sdata -j .data -j .rodata -j .dynamic -j .dynsym  -j .rel -j .rela -j .rel.* -j .rela.* -j .reloc --target efi-app-x86_64 --subsystem=10
-BOOTLOADER_IMG=loader.efi
+BOOTLOADER_IMG=main.efi
 KERNEL_IMG=kernel.elf
-OBJS= loader.o file.o
+OBJS= main.o file.o loaders/elf.o loaders/binary.o loaders/loader.o
 OS_IMAGE=uefi.img
 
 lib:
@@ -38,7 +38,7 @@ image: $(OS_IMAGE) $(BOOTLOADER_IMG) $(KERNEL_IMG)
 all: lib image $(KERNEL_IMG)
 
 clean:
-	rm -rf *.o *.so *img *.efi *.elf
+	rm -rf *.o *.so *img *.efi *.elf *.bin loaders/*.o
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
