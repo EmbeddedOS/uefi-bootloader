@@ -1,7 +1,7 @@
 #pragma once
 
 #include <efi.h>
-#include <efiapi.h>
+#include <efilib.h>
 
 typedef enum
 {
@@ -96,12 +96,11 @@ typedef struct
 {
     UINT32 p_type;    /* Identifies the type of the segment.              */
     UINT32 p_flags64; /* Segment-dependent flags.                         */
-    UINT32 p_offset;  /* Offset of the segment in memory.                 */
+    UINT64 p_offset;  /* Offset of the segment in memory.                 */
     UINT64 p_vaddr;   /* Virtual address of the segment in memory.        */
     UINT64 p_paddr;   /* On systems where physical is relevant.           */
     UINT64 p_filesz;  /* Size in bytes of the segment in the file image.  */
     UINT64 p_memsz;   /* Size in bytes of the segment in memory.          */
-    UINT32 p_flags32; /* Segment-dependent flags.                         */
     UINT64 p_align;   /* Signify no alignment.                            */
 } __attribute__((packed)) elf64_program_header_t;
 

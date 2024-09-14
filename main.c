@@ -47,8 +47,8 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 
   kernel_params.graphic_out_protocol = *gop->Mode;
 
-
   /* 4. Jump to kernel. */
+  Print(L"Jumping to kernel...\n");
   ((kernel_entry)entry_point)(&kernel_params);
 
 uefi_get_graphic_output_protocol_failure:

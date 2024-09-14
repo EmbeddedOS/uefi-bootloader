@@ -55,7 +55,7 @@ EFI_STATUS uefi_load_kernel(EFI_HANDLE ImageHandle,
 
         if (loaders[i].loader(buffer, file_size, entry_point) == EFI_SUCCESS)
         {
-            Print(L"%s loaded the kernel, entry point: %ld\n",
+            Print(L"%s loaded the kernel, entry point: 0x%lx\n",
             loaders[i].name,
             *(UINT64 *)entry_point);
             break;
