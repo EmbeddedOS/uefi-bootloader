@@ -4,17 +4,33 @@
 
 #include "loader.h"
 
- struct kernel_loader_t
+/* Private defines -----------------------------------------------------------*/
+
+/* Private types -------------------------------------------------------------*/
+typedef struct
 {
     kernel_loader loader;
     CHAR16 *name;
-}  loaders[MAX_SUPPORTED_LOADER] = {
+} kernel_loader_t;
+
+/* Private variables ---------------------------------------------------------*/
+
+/**
+ * @brief   - Kernel loaders.
+ * @note    - Currently only support ELF and binary formats.
+ */
+const kernel_loader_t loaders[MAX_SUPPORTED_LOADER] = {
     {.name = L"ELF Loader", .loader = load_elf_kernel},
 
     /* Try to load by binary loader finally.*/
     {.name = L"Flat Binary Loader", .loader = load_binary_kernel},
     {.name = NULL, .loader = NULL}};
 
+/* Private function prototypes -----------------------------------------------*/
+
+/* Private functions ---------------------------------------------------------*/
+
+/* Public functions ----------------------------------------------------------*/
 EFI_STATUS uefi_load_kernel(EFI_HANDLE ImageHandle,
                             EFI_SYSTEM_TABLE *SystemTable,
                             const CHAR16 *file,
@@ -28,6 +44,7 @@ EFI_STATUS uefi_load_kernel(EFI_HANDLE ImageHandle,
 
     fs_volume = uefi_get_volume(ImageHandle);
 
+    /* 1. Load kernel raw file into memory. */
     res = uefi_open_file(fs_volume, file, &file_handle);
     if (res != EFI_SUCCESS)
     {
@@ -45,6 +62,8 @@ EFI_STATUS uefi_load_kernel(EFI_HANDLE ImageHandle,
         goto uefi_read_file_failure;
     }
 
+
+    /* 2. Try to load kernel with loaders one by one. */
     for (int i = 0; i < MAX_SUPPORTED_LOADER; i++)
     {
         if (loaders[i].loader == NULL)
@@ -56,8 +75,8 @@ EFI_STATUS uefi_load_kernel(EFI_HANDLE ImageHandle,
         if (loaders[i].loader(buffer, file_size, entry_point) == EFI_SUCCESS)
         {
             Print(L"%s loaded the kernel, entry point: 0x%lx\n",
-            loaders[i].name,
-            *(UINT64 *)entry_point);
+                  loaders[i].name,
+                  *(UINT64 *)entry_point);
             break;
         }
     }

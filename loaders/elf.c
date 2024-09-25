@@ -1,33 +1,38 @@
 #include "elf.h"
+
+/* Private defines -----------------------------------------------------------*/
 #define PAGE_SIZE 4096
 
+/* Private function prototypes -----------------------------------------------*/
 void print_elf_info(UINT8 *buffer);
 
+/* Private functions ---------------------------------------------------------*/
 void print_elf_info(UINT8 *buffer)
 {
     elf64_header_t *header = (elf64_header_t *)buffer;
     elf64_program_header_t *program_header =
         (elf64_program_header_t *)(buffer + header->e_phoff);
 
-    Print(L"ELF header type: %d\n", header->e_type);
-    Print(L"ELF header machine: %d\n", header->e_machine);
-    Print(L"ELF header entry: 0x%lx\n", header->e_entry);
+    Print(L"ELF type: %d, machine: %d, entry: %lx\n",
+          header->e_type,
+          header->e_machine,
+          header->e_entry);
 
     /* Print all segment info. */
     for (INT32 i = 0; i < header->e_phnum; i++, program_header++)
     {
-        Print(L"No.%d type: 0x%x, flag: 0x%x, "
-              "offset: 0x%lx, aligned: 0x%lx, vaddr: 0x%x\n",
+        Print(L"ELF section:%d type: 0x%x, flag: 0x%x, "
+              "offset: 0x%lx, vaddr: 0x%x\n",
               i,
               program_header->p_type,
               program_header->p_flags64,
               program_header->p_offset,
-              program_header->p_align,
               program_header->p_vaddr,
               program_header->p_filesz);
     }
 }
 
+/* Public functions ----------------------------------------------------------*/
 EFI_STATUS load_elf_kernel(UINT8 *buffer,
                            UINT64 size,
                            void **entry_point)
@@ -59,8 +64,8 @@ EFI_STATUS load_elf_kernel(UINT8 *buffer,
     Print(L"Loading ELF kernel...\n");
     print_elf_info(buffer);
 
+    /* 1. Calculate memory bounds for all program sections. */
     program_header = (elf64_program_header_t *)(buffer + header->e_phoff);
-    /* Calculate memory bounds for all program sections. */
     for (INT32 i = 0; i < header->e_phnum; i++, program_header++)
     {
         if (program_header->p_type == ELF64_P_PT_LOAD)
@@ -92,10 +97,9 @@ EFI_STATUS load_elf_kernel(UINT8 *buffer,
 
     needed_memory_size = mem_end - mem_start;
 
-    Print(L"Program needed memory: 0x%x, end: 0x%x, start: 0x%x\n",
-          needed_memory_size, mem_end, mem_start);
+    Print(L"Needed kernel's memory: 0x%x\n", needed_memory_size);
 
-    /* Allocate buffer for program headers. */
+    /* 2. Allocate buffer for program headers. */
     res = uefi_call_wrapper(BS->AllocatePool, 3,
                             EfiLoaderData,
                             needed_memory_size,
@@ -106,10 +110,8 @@ EFI_STATUS load_elf_kernel(UINT8 *buffer,
         return res;
     }
 
-    // uefi_call_wrapper(ZeroMem, 2, program_memory_buffer, needed_memory_size);
-
+    /* 3. Load loadable section into memory. */
     program_header = (elf64_program_header_t *)(buffer + header->e_phoff);
-    /* Calculate memory bounds for all program sections. */
     for (INT32 i = 0; i < header->e_phnum; i++, program_header++)
     {
         if (program_header->p_type == ELF64_P_PT_LOAD)
@@ -130,6 +132,7 @@ EFI_STATUS load_elf_kernel(UINT8 *buffer,
     Print(L"Program memory: %p, entry offset: %x, start: 0x%x\n",
           program_memory_buffer, header->e_entry, mem_start);
 
+    /* 4. Update entry point. */
     *entry_point = (VOID *)((UINT8 *)program_memory_buffer +
                             (header->e_entry - mem_start));
 

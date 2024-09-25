@@ -3,6 +3,9 @@
 #include <efi.h>
 #include <efilib.h>
 
+/* Public defines ------------------------------------------------------------*/
+
+/* Public types --------------------------------------------------------------*/
 typedef enum
 {
     ELF64_E_EI_OSABI_SYSTEM_V = 0x00,
@@ -118,6 +121,7 @@ typedef struct
     UINT64 sh_entsize;
 } __attribute__((packed)) elf64_section_header_t;
 
+/* Public function prototypes ------------------------------------------------*/
 EFI_STATUS load_elf_kernel(UINT8 *buffer,
                            UINT64 size,
                            void **entry_point);

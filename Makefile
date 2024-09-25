@@ -1,6 +1,6 @@
 CC=gcc
 LD=ld
-INC=-Ignu-efi/inc
+INC=-Ignu-efi/inc -I. -Iloaders
 CFLAGS=-fpic -ffreestanding -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -maccumulate-outgoing-args
 LDFLAGS=-shared -Bsymbolic
 LDLIB_DIRS=-Lgnu-efi/x86_64/lib -Lgnu-efi/x86_64/gnuefi
