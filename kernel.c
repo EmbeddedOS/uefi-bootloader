@@ -27,4 +27,6 @@ void main(boot_params_t *params)
             frame_buffer[x + y * x_res] = 0xFFCC2222;
         }
     }
+
+    params->custom_protocol_data;
 }

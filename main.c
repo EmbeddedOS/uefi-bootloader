@@ -3,13 +3,21 @@
 
 #include "kernel.h"
 #include "loaders/loader.h"
+#include "protocol.h"
 
 /* Public defines ------------------------------------------------------------*/
 #define KERNEL_IMAGE_PATH L"kernel.elf"
+#define CUSTOM_PROTOCOL_DATA 123
 
 /* Public functions prototypes -----------------------------------------------*/
 EFI_GRAPHICS_OUTPUT_PROTOCOL *
 uefi_get_graphic_output_protocol();
+
+EFI_STATUS
+uefi_install_custom_protocol(EFI_HANDLE ImageHandle);
+
+CUSTOM_PROTOCOL *
+uefi_get_custom_protocol();
 
 EFI_STATUS
 uefi_get_mm(memory_map_t *mm);
@@ -31,9 +39,17 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
   UINT8 *buffer = NULL;
   boot_params_t kernel_params = {0};
   EFI_GRAPHICS_OUTPUT_PROTOCOL *gop = NULL;
+  CUSTOM_PROTOCOL *custom_protocol = NULL;
   void *entry_point = NULL;
 
   InitializeLib(ImageHandle, SystemTable);
+
+  res = uefi_install_custom_protocol(ImageHandle);
+  if (EFI_ERROR(res))
+  {
+    Print(L"Failed to install custom protocol: %d\n", res);
+    goto exit;
+  }
 
   /* 1. Configure screen colours. */
   uefi_call_wrapper(SystemTable->ConOut->SetAttribute, 2,
@@ -53,9 +69,14 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
     goto uefi_get_graphic_output_protocol_failure;
   }
 
+  custom_protocol = uefi_get_custom_protocol();
+  if (custom_protocol)
+  {
+    kernel_params.custom_protocol_data = custom_protocol->data;
+  }
+
   kernel_params.runtime_services = SystemTable->RuntimeServices;
   kernel_params.graphic_out_protocol = *gop->Mode;
-
   /* 4. Jump to kernel. */
   Print(L"Press any key to enter to kernel...\n");
   uefi_get_key();
@@ -75,8 +96,8 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
                           kernel_params.mm.map_key);
   if (EFI_ERROR(res))
   {
-      Print(L"Failed to exit boot services: %d\n", res);
-      goto ExitBootServices_failure;
+    Print(L"Failed to exit boot services: %d\n", res);
+    goto ExitBootServices_failure;
   }
 
   ((kernel_entry)entry_point)(&kernel_params);
@@ -85,9 +106,9 @@ ExitBootServices_failure:
 uefi_get_mm_failure:
 uefi_get_graphic_output_protocol_failure:
   /* TODO: cleanup memory pool. */
-  Print(L"Failed to load kernel, press any key to exit...\n");
 
 exit:
+  Print(L"Failed to load kernel, press any key to exit...\n");
   uefi_get_key();
 
   return res;
@@ -171,4 +192,54 @@ uefi_get_mm(memory_map_t *mm)
   }
 
   return res;
+}
+
+EFI_STATUS
+uefi_install_custom_protocol(EFI_HANDLE ImageHandle)
+{
+  EFI_STATUS res = EFI_SUCCESS;
+  CUSTOM_PROTOCOL *custom_protocol = NULL;
+  EFI_GUID guid = EFI_CUSTOM_PROTOCOL_GUID;
+
+  res = uefi_call_wrapper(BS->AllocatePool, 3,
+                          EfiBootServicesData,
+                          sizeof(CUSTOM_PROTOCOL),
+                          (VOID **)&custom_protocol);
+  if (EFI_ERROR(res))
+  {
+    return res;
+  }
+
+  custom_protocol->data = CUSTOM_PROTOCOL_DATA;
+
+  res = uefi_call_wrapper(BS->InstallProtocolInterface, 4,
+                          &ImageHandle,
+                          &guid,
+                          EFI_NATIVE_INTERFACE,
+                          custom_protocol);
+  if (EFI_ERROR(res))
+  {
+    uefi_call_wrapper(BS->FreePool, 1, custom_protocol);
+  }
+
+  return res;
+}
+
+CUSTOM_PROTOCOL *
+uefi_get_custom_protocol()
+{
+
+  EFI_STATUS status = EFI_SUCCESS;
+  EFI_GUID guid = EFI_CUSTOM_PROTOCOL_GUID;
+  CUSTOM_PROTOCOL *custom_protocol = NULL;
+
+  status = uefi_call_wrapper(BS->LocateProtocol, 3,
+                             &guid, NULL, (void **)&custom_protocol);
+  if (EFI_ERROR(status))
+  {
+    Print(L"Failed to locate custom protocol: %d\n", status);
+    return NULL;
+  }
+
+  return custom_protocol;
 }
