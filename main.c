@@ -11,6 +11,9 @@
 EFI_GRAPHICS_OUTPUT_PROTOCOL *
 uefi_get_graphic_output_protocol();
 
+EFI_STATUS
+uefi_get_mm(memory_map_t *mm);
+
 /**
  * @brief   - Get a character from keyboards.
  */
@@ -50,6 +53,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
     goto uefi_get_graphic_output_protocol_failure;
   }
 
+  kernel_params.runtime_services = SystemTable->RuntimeServices;
   kernel_params.graphic_out_protocol = *gop->Mode;
 
   /* 4. Jump to kernel. */
@@ -57,14 +61,34 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
   uefi_get_key();
   uefi_call_wrapper(SystemTable->ConOut->ClearScreen, 1, SystemTable->ConOut);
 
+  res = uefi_get_mm(&kernel_params.mm);
+  if (EFI_ERROR(res))
+  {
+    Print(L"Failed to get memory map: %d\n", res);
+    goto uefi_get_mm_failure;
+  }
+
+  /* NOTE: Don't do anything between get memory and exit boot services step. */
+
+  res = uefi_call_wrapper(BS->ExitBootServices, 2,
+                          ImageHandle,
+                          kernel_params.mm.map_key);
+  if (EFI_ERROR(res))
+  {
+      Print(L"Failed to exit boot services: %d\n", res);
+      goto ExitBootServices_failure;
+  }
+
   ((kernel_entry)entry_point)(&kernel_params);
 
+ExitBootServices_failure:
+uefi_get_mm_failure:
 uefi_get_graphic_output_protocol_failure:
+  /* TODO: cleanup memory pool. */
+  Print(L"Failed to load kernel, press any key to exit...\n");
+
 exit:
-  while (1)
-  {
-    /* code */
-  }
+  uefi_get_key();
 
   return res;
 }
@@ -104,4 +128,47 @@ EFI_INPUT_KEY uefi_get_key(void)
   }
 
   return key;
+}
+
+EFI_STATUS
+uefi_get_mm(memory_map_t *mm)
+{
+  EFI_STATUS res = EFI_SUCCESS;
+
+  /* 1. Get memory size by pass size 0. */
+  res = uefi_call_wrapper(BS->GetMemoryMap, 5,
+                          &mm->mm_size,
+                          mm->mm_descriptor,
+                          &mm->map_key,
+                          &mm->descriptor_size,
+                          &mm->descriptor_version);
+  if (EFI_ERROR(res) && res != EFI_BUFFER_TOO_SMALL)
+  {
+    return res;
+  }
+
+  /* 2. Update new memory size to get. */
+  mm->mm_size += mm->descriptor_size * 2;
+  res = uefi_call_wrapper(BS->AllocatePool, 3,
+                          EfiLoaderData,
+                          mm->mm_size,
+                          &mm->mm_descriptor);
+  if (EFI_ERROR(res))
+  {
+    return res;
+  }
+
+  /* 3. Get memory map. */
+  res = uefi_call_wrapper(BS->GetMemoryMap, 5,
+                          &mm->mm_size,
+                          mm->mm_descriptor,
+                          &mm->map_key,
+                          &mm->descriptor_version,
+                          &mm->descriptor_size);
+  if (EFI_ERROR(res))
+  {
+    uefi_call_wrapper(BS->FreePool, 1, mm->mm_descriptor);
+  }
+
+  return res;
 }

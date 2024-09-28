@@ -3,4 +3,5 @@
 *.so
 *.efi
 *.bin
+*.elf
 .vscode/
