@@ -29,6 +29,3 @@ EFI_STATUS uefi_read_file(EFI_FILE_HANDLE file_handle,
                           UINT8 *buffer,
                           UINT64 size);
 
-EFI_STATUS uefi_load_kernel_image(EFI_FILE_HANDLE volume,
-                                  CHAR16 *filename,
-                                  EFI_PHYSICAL_ADDRESS *kernel_entry_point);
